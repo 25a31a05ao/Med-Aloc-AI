@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Hospital Resource Allocator</title>
+    <!-- Chart.js for real-time visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF & AutoTable for automatic bill generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <i class="fa-solid fa-truck-medical"></i>
+                <h1>MedAlloc AI</h1>
+            </div>
+            <div class="header-controls">
+                <button id="themeToggle" class="icon-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
+            </div>
+        </header>
+
+        <main>
+            <!-- Top Dashboard: Resources & Charts -->
+            <div class="top-row">
+                <section class="resources-panel glass-card">
+                    <h2><i class="fa-solid fa-briefcase-medical"></i> Hospital Resources</h2>
+                    <div class="resource-grid">
+                        <div class="resource-item" data-type="ICU">
+                            <div class="title">ICU Beds</div>
+                            <div class="count" id="countICU">0/5</div>
+                            <div class="progress-bar"><div class="fill" id="fillICU"></div></div>
+                        </div>
+                        <div class="resource-item" data-type="GeneralBed">
+                            <div class="title">General Beds</div>
+                            <div class="count" id="countGeneralBed">0/15</div>
+                            <div class="progress-bar"><div class="fill" id="fillGeneralBed"></div></div>
+                        </div>
+                        <div class="resource-item" data-type="EmergencyDoc">
+                            <div class="title">ER Doctors</div>
+                            <div class="count" id="countEmergencyDoc">0/2</div>
+                            <div class="progress-bar"><div class="fill" id="fillEmergencyDoc"></div></div>
+                        </div>
+                        <div class="resource-item" data-type="Specialist">
+                            <div class="title">Specialists</div>
+                            <div class="count" id="countSpecialist">0/4</div>
+                            <div class="progress-bar"><div class="fill" id="fillSpecialist"></div></div>
+                        </div>
+                        <div class="resource-item" data-type="GeneralDoc">
+                            <div class="title">General Docs</div>
+                            <div class="count" id="countGeneralDoc">0/8</div>
+                            <div class="progress-bar"><div class="fill" id="fillGeneralDoc"></div></div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="chart-panel glass-card">
+                    <h2><i class="fa-solid fa-chart-pie"></i> Usage Overview</h2>
+                    <div class="chart-container">
+                        <canvas id="resourceChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Middle Row: Patient Addition & Simulation Controls -->
+            <div class="middle-row">
+                <section class="form-panel glass-card">
+                    <h2><i class="fa-solid fa-user-plus"></i> New Patient Triage</h2>
+                    <form id="triageForm">
+                        <div class="form-group">
+                            <input type="text" id="patientName" placeholder="Patient Name" required>
+                            <input type="number" id="patientAge" placeholder="Age" required min="1" max="150" style="flex: 0.5;">
+                            <select id="patientCondition" required>
+                                <option value="" disabled selected>Select Condition...</option>
+                                <option value="Critical">🔴 Critical (Immediate ICU)</option>
+                                <option value="Serious">🟡 Serious (General + Specialist)</option>
+                                <option value="Normal">🟢 Normal (General + Gen Doc)</option>
+                            </select>
+                            <button type="submit" class="btn primary"><i class="fa-solid fa-plus"></i> Add Patient</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="controls-panel glass-card">
+                    <h2><i class="fa-solid fa-microchip"></i> AI Controls</h2>
+                    <div class="controls-wrapper">
+                        <div class="buttons">
+                            <button id="btnAllocate" class="btn secondary"><i class="fa-solid fa-wand-magic-sparkles"></i> Step Allocate</button>
+                            <button id="btnReset" class="btn danger"><i class="fa-solid fa-power-off"></i> Reset Data</button>
+                            <button id="btnGenerateRandom" class="btn info"><i class="fa-solid fa-users"></i> Add Random</button>
+                        </div>
+                        <div class="toggles">
+                            <label class="toggle-switch" title="Automatically distributes beds">
+                                <input type="checkbox" id="chkAutoAllocate" checked>
+                                <span class="slider"></span>
+                                <span class="label-text">Auto-Allocate</span>
+                            </label>
+                            <label class="toggle-switch" title="Simulates recoveries freeing up beds">
+                                <input type="checkbox" id="chkSimulateTreatment">
+                                <span class="slider"></span>
+                                <span class="label-text">Simulate Recoveries</span>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Bottom Row: Queue Tables & Logs -->
+            <div class="bottom-row">
+                <section class="queue-panel glass-card">
+                    <h2><i class="fa-solid fa-list"></i> Priority Queue & Active Roster</h2>
+                    <div class="table-container">
+                        <table id="patientsTable">
+                            <thead>
+                                <tr>
+                                    <th>Patient Info</th>
+                                    <th>Condition</th>
+                                    <th>Status</th>
+                                    <th>Assigned Bed</th>
+                                    <th>Doctor Lead</th>
+                                    <th>Appt Time</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="patientsBody">
+                                <!-- Populated dynamically via script.js -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="logs-panel glass-card">
+                    <h2><i class="fa-solid fa-clipboard-list"></i> Operation Logs</h2>
+                    <div id="logConsole" class="log-console"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Core Script -->
+    <script src="script.js"></script>
+</body>
+</html>
